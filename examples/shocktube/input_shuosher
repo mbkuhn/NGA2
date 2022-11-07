@@ -1,0 +1,28 @@
+# Parallelization
+Partition :	1 1 1
+
+# Mesh definition
+nx :	400
+
+# Flow setup
+Shocktube type:	    shu-osher
+
+# Fluid properties
+Gas gamma : 	    1.4
+
+# Time integration
+Max timestep size : 5e-3
+Max cfl number :    1
+Max time :          1.7999999
+Max steps :	    100000
+
+# Pressure solver
+Pressure tolerance : 1e-6
+Pressure iteration : 100
+
+# Implicit velocity solver
+Implicit tolerance : 1e-6
+Implicit iteration : 100
+
+# Ensight output
+Ensight output period : 0.9999e-1
