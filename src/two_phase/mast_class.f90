@@ -30,6 +30,20 @@ module mast_class
    integer, parameter, public :: thermmech_egy_mech_hhz=2  !< Thermo-mechanical for energy, mechanical for helmholtz
    !integer, parameter, public :: thermmech_egy_therm_hhz=3 !< Thermo-mechanical for energy, thermal for helmholtz
 
+   ! List of available reconstruction methods
+   integer, parameter, public :: piecewise_constant=1
+   integer, parameter, public :: minmod=2
+   integer, parameter, public :: weno3=3
+   integer, parameter, public :: central4th_lim=4
+   integer, parameter, public :: central4th=5
+   integer, parameter, public :: weno5_interp=6
+
+   ! List of multiphase reconstruction approaches
+   integer, parameter, public :: phase_blind=1   !< no adjustment for multiphase, variable values as is (incl. 0's)
+   integer, parameter, public :: const_extrap=2  !< extrapolates local phase variable values into cells lacking phase
+   integer, parameter, public :: const_local=3   !< zeroes all gradients in multiphase cells
+   !integer, parameter, public :: phase_mapped=4  !< maps interpolation to local phase geometry in cell
+
    ! Buffer for labeling BCs
    character(len=str_medium), public :: bc_scope
    
@@ -1326,139 +1340,223 @@ contains
    ! ==================================================== !
    ! Form conservative linear reconstruction in each cell !
    ! ==================================================== !
-   subroutine flow_reconstruct(this,vf)
-     use vfs_class, only: vfs
-     implicit none
-     class(mast), intent(inout) :: this   !< The two-phase all-Mach flow solver
-     class(vfs),  intent(inout) :: vf     !< The volume fraction solver
-     integer  :: i,j,k,ip,jp,kp,im,jm,km,idir
-     real(WP) :: idp,idm !,idpg,idpl,idmg,idml
+   subroutine flow_reconstruct(this,vf,model_recon,mphase_recon)
+      use vfs_class, only: vfs
+      implicit none
+      class(mast), intent(inout) :: this   !< The two-phase all-Mach flow solver
+      class(vfs),  intent(inout) :: vf     !< The volume fraction solver
+      integer,     intent(in), optional :: model_recon  !< The chosen reconstruction model
+      integer,     intent(in), optional :: mphase_recon !< The chosen multiphase reconstruction treatment
+      integer  :: i,j,k,idir,igrad,mo_r,mp_r
+      integer  :: ip1,jp1,kp1,im1,jm1,km1,ip2,jp2,kp2,im2,jm2,km2,ip3,jp3,kp3,im3,jm3,km3
+      real(WP), dimension(-3:3)  :: varvec, geomvec
+      real(WP), dimension(4)     :: gradvec
+      real(WP) :: d,dp1,dm1,dp2,dm2,dp3,dm3
 
-     ! Zero gradients
-     this%gradGrho =0.0_WP
-     this%gradGrhoE=0.0_WP
-     this%gradGrhoU=0.0_WP
-     this%gradGrhoV=0.0_WP
-     this%gradGrhoW=0.0_WP
-     this%gradLrho =0.0_WP
-     this%gradLrhoE=0.0_WP
-     this%gradLrhoU=0.0_WP
-     this%gradLrhoV=0.0_WP
-     this%gradLrhoW=0.0_WP
+      if (present(model_recon)) then
+         mo_r = model_recon
+      else
+         mo_r = minmod ! default
+      end if
+      if (present(mphase_recon)) then
+         mp_r = mphase_recon
+      else
+         mp_r = const_local ! default
+      end if
 
-     this%gradGIE  =0.0_WP
-     this%gradLIE  =0.0_WP
+      ! Zero gradients
+      this%gradGrho =0.0_WP
+      this%gradGrhoE=0.0_WP
+      this%gradGrhoU=0.0_WP
+      this%gradGrhoV=0.0_WP
+      this%gradGrhoW=0.0_WP
+      this%gradLrho =0.0_WP
+      this%gradLrhoE=0.0_WP
+      this%gradLrhoU=0.0_WP
+      this%gradLrhoV=0.0_WP
+      this%gradLrhoW=0.0_WP
 
-     this%gradGP   =0.0_WP
-     this%gradLP   =0.0_WP
+      this%gradGIE  =0.0_WP
+      this%gradLIE  =0.0_WP
 
-     ! Gradients for linear reconstruction
-     do k=this%cfg%kmino_+1,this%cfg%kmaxo_-1
-        do j=this%cfg%jmino_+1,this%cfg%jmaxo_-1
-           do i=this%cfg%imino_+1,this%cfg%imaxo_-1
-              ! No need to calculate gradient inside of wall cell
-              if (this%mask(i,j,k).eq.1) cycle
-              ! Cycle through directions
-              do idir=1,3
-                 select case (idir)
-                 case (1) ! X gradient
-                    ip=i+1; jp=j; kp=k; idp=this%cfg%dxmi(i+1)
-                    im=i-1; jm=j; km=k; idm=this%cfg%dxmi(i  )
-                    ! idpg=1.0_WP/(vf%Gbary(1,i+1,j,k)-vf%Gbary(1,i,j,k))
-                    ! idpl=1.0_WP/(vf%Lbary(1,i+1,j,k)-vf%Lbary(1,i,j,k))
-                    ! idmg=1.0_WP/(vf%Gbary(1,i,j,k)-vf%Gbary(1,i-1,j,k))
-                    ! idml=1.0_WP/(vf%Lbary(1,i,j,k)-vf%Lbary(1,i-1,j,k))
-                 case (2) ! Y gradient
-                    ip=i; jp=j+1; kp=k; idp=this%cfg%dymi(j+1)
-                    im=i; jm=j-1; km=k; idm=this%cfg%dymi(j  )
-                    ! idpg=1.0_WP/(vf%Gbary(2,i,j+1,k)-vf%Gbary(2,i,j,k))
-                    ! idpl=1.0_WP/(vf%Lbary(2,i,j+1,k)-vf%Lbary(2,i,j,k))
-                    ! idmg=1.0_WP/(vf%Gbary(2,i,j,k)-vf%Gbary(2,i,j-1,k))
-                    ! idml=1.0_WP/(vf%Lbary(2,i,j,k)-vf%Lbary(2,i,j-1,k))
-                 case (3) ! Z gradient
-                    ip=i; jp=j; kp=k+1; idp=this%cfg%dzmi(k+1)
-                    im=i; jm=j; km=k-1; idm=this%cfg%dzmi(k  )
-                    ! idpg=1.0_WP/(vf%Gbary(3,i,j,k+1)-vf%Gbary(3,i,j,k))
-                    ! idpl=1.0_WP/(vf%Lbary(3,i,j,k+1)-vf%Lbary(3,i,j,k))
-                    ! idmg=1.0_WP/(vf%Gbary(3,i,j,k)-vf%Gbary(3,i,j,k+1))
-                    ! idml=1.0_WP/(vf%Lbary(3,i,j,k)-vf%Lbary(3,i,j,k-1))
-                 end select
-                 this%gradGrho (idir,i,j,k)=mmgrad((this%Grho (ip,jp,kp)-this%Grho (i,j,k))*idp,&
-                      (this%Grho (i,j,k)-this%Grho (im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradGrhoE(idir,i,j,k)=mmgrad((this%GrhoE(ip,jp,kp)-this%GrhoE(i,j,k))*idp,&
-                      (this%GrhoE(i,j,k)-this%GrhoE(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradGrhoU(idir,i,j,k)=mmgrad((this%Grho(ip,jp,kp)*this%Ui(ip,jp,kp)-this%Grho(i,j,k)*this%Ui(i,j,k))*idp,&
-                      (this%Grho(i,j,k)*this%Ui(i,j,k)-this%Grho(im,jm,km)*this%Ui(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradGrhoV(idir,i,j,k)=mmgrad((this%Grho(ip,jp,kp)*this%Vi(ip,jp,kp)-this%Grho(i,j,k)*this%Vi(i,j,k))*idp,&
-                      (this%Grho(i,j,k)*this%Vi(i,j,k)-this%Grho(im,jm,km)*this%Vi(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradGrhoW(idir,i,j,k)=mmgrad((this%Grho(ip,jp,kp)*this%Wi(ip,jp,kp)-this%Grho(i,j,k)*this%Wi(i,j,k))*idp,&
-                      (this%Grho(i,j,k)*this%Wi(i,j,k)-this%Grho(im,jm,km)*this%Wi(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
+      this%gradGP   =0.0_WP
+      this%gradLP   =0.0_WP
 
-                 this%gradLrho (idir,i,j,k)=mmgrad((this%Lrho (ip,jp,kp)-this%Lrho (i,j,k))*idp,&
-                      (this%Lrho (i,j,k)-this%Lrho (im,jm,km))*idm)*real(floor(       vf%VF(i,j,k)),WP)
-                 this%gradLrhoE(idir,i,j,k)=mmgrad((this%LrhoE(ip,jp,kp)-this%LrhoE(i,j,k))*idp,&
-                      (this%LrhoE(i,j,k)-this%LrhoE(im,jm,km))*idm)*real(floor(       vf%VF(i,j,k)),WP)
-                 this%gradLrhoU(idir,i,j,k)=mmgrad((this%Lrho(ip,jp,kp)*this%Ui(ip,jp,kp)-this%Lrho(i,j,k)*this%Ui(i,j,k))*idp,&
-                      (this%Lrho(i,j,k)*this%Ui(i,j,k)-this%Lrho(im,jm,km)*this%Ui(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradLrhoV(idir,i,j,k)=mmgrad((this%Lrho(ip,jp,kp)*this%Vi(ip,jp,kp)-this%Lrho(i,j,k)*this%Vi(i,j,k))*idp,&
-                      (this%Lrho(i,j,k)*this%Vi(i,j,k)-this%Lrho(im,jm,km)*this%Vi(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradLrhoW(idir,i,j,k)=mmgrad((this%Lrho(ip,jp,kp)*this%Wi(ip,jp,kp)-this%Lrho(i,j,k)*this%Wi(i,j,k))*idp,&
-                      (this%Lrho(i,j,k)*this%Wi(i,j,k)-this%Lrho(im,jm,km)*this%Wi(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)                 
+      ! Gradients for linear reconstruction
+      do k=this%cfg%kmino_,this%cfg%kmaxo_
+         do j=this%cfg%jmino_,this%cfg%jmaxo_
+            do i=this%cfg%imino_,this%cfg%imaxo_
+               ! No need to calculate gradient inside of wall cell
+               if (this%mask(i,j,k).eq.1) cycle
+               ! Cycle through directions
+               do idir=1,3
+                 
 
-                 this%gradGIE  (idir,i,j,k)=mmgrad((this%GrhoE(ip,jp,kp)-this%GKEold(ip,jp,kp)-this%GrhoE(i,j,k) &
-                      +this%GKEold(i,j,k))*idp,(this%GrhoE(i,j,k)-this%GKEold(i,j,k)-this%GrhoE(im,jm,km) &
-                      +this%GKEold(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradLIE  (idir,i,j,k)=mmgrad((this%LrhoE(ip,jp,kp)-this%LKEold(ip,jp,kp)-this%LrhoE(i,j,k) &
-                      +this%LKEold(i,j,k))*idp,(this%LrhoE(i,j,k)-this%LKEold(i,j,k)-this%LrhoE(im,jm,km) &
-                      +this%LKEold(im,jm,km))*idm)*real(floor(       vf%VF(i,j,k)),WP)
+                  ! ! Switch for scheme & order of accuracy
+                  ! this%gradGrho (idir,i,j,k) = mmgrad(this%Grho (im,jm,km),this%Grho (i,j,k), &
+                  !                                     this%Grho (ip,jp,kp),idm,idp)
+                  ! this%gradGrhoE(idir,i,j,k) = mmgrad(this%GrhoE(im,jm,km),this%GrhoE(i,j,k), &
+                  !                                     this%GrhoE(ip,jp,kp),idm,idp)
+                  ! this%gradGrhoU(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Ui(im,jm,km), &
+                  !    this%Grho(i,j,k)*this%Ui(i,j,k),this%Grho(ip,jp,kp)*this%Ui(ip,jp,kp),idm,idp)
+                  ! this%gradGrhoV(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Vi(im,jm,km), &
+                  !    this%Grho(i,j,k)*this%Vi(i,j,k),this%Grho(ip,jp,kp)*this%Vi(ip,jp,kp),idm,idp)
+                  ! this%gradGrhoW(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Wi(im,jm,km), &
+                  !    this%Grho(i,j,k)*this%Wi(i,j,k),this%Grho(ip,jp,kp)*this%Wi(ip,jp,kp),idm,idp)
 
-                 this%gradGP   (idir,i,j,k)=mmgrad((this%GP(ip,jp,kp)-this%GP(i,j,k))*idp,&
-                      (this%GP(i,j,k)-this%GP(im,jm,km))*idm)*real(floor(1.0_WP-vf%VF(i,j,k)),WP)
-                 this%gradLP   (idir,i,j,k)=mmgrad((this%LP(ip,jp,kp)-this%LP(i,j,k))*idp,&
-                      (this%LP(i,j,k)-this%LP(im,jm,km))*idm)*real(floor(       vf%VF(i,j,k)),WP)
+                  ! this%gradLrho (idir,i,j,k) = mmgrad(this%Lrho (im,jm,km),this%Lrho (i,j,k), &
+                  !                                     this%Lrho (ip,jp,kp),idm,idp)
+                  ! this%gradLrhoE(idir,i,j,k) = mmgrad(this%LrhoE(im,jm,km),this%LrhoE(i,j,k), &
+                  !                                     this%LrhoE(ip,jp,kp),idm,idp)
+                  ! this%gradLrhoU(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Ui(im,jm,km), &
+                  !    this%Lrho(i,j,k)*this%Ui(i,j,k),this%Lrho(ip,jp,kp)*this%Ui(ip,jp,kp),idm,idp)
+                  ! this%gradLrhoV(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Vi(im,jm,km), &
+                  !    this%Lrho(i,j,k)*this%Vi(i,j,k),this%Lrho(ip,jp,kp)*this%Vi(ip,jp,kp),idm,idp)
+                  ! this%gradLrhoW(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Wi(im,jm,km), &
+                  !    this%Lrho(i,j,k)*this%Wi(i,j,k),this%Lrho(ip,jp,kp)*this%Wi(ip,jp,kp),idm,idp)
 
-                 ! this%gradGrho (idir,i,j,k)=mmgrad((Grho (ip,jp,kp)-Grho (i,j,k))*idpg,(Grho (i,j,k)-Grho (im,jm,km))*idmg)
-                 ! this%gradGrhoE(idir,i,j,k)=mmgrad((GrhoE(ip,jp,kp)-GrhoE(i,j,k))*idpg,(GrhoE(i,j,k)-GrhoE(im,jm,km))*idmg)
-                 ! this%gradGrhoU(idir,i,j,k)=mmgrad((GrhoU(ip,jp,kp)-GrhoU(i,j,k))*idpg,(GrhoU(i,j,k)-GrhoU(im,jm,km))*idmg)
-                 ! this%gradGrhoV(idir,i,j,k)=mmgrad((GrhoV(ip,jp,kp)-GrhoV(i,j,k))*idpg,(GrhoV(i,j,k)-GrhoV(im,jm,km))*idmg)
-                 ! this%gradGrhoW(idir,i,j,k)=mmgrad((GrhoW(ip,jp,kp)-GrhoW(i,j,k))*idpg,(GrhoW(i,j,k)-GrhoW(im,jm,km))*idmg)
-                 ! this%gradLrho (idir,i,j,k)=mmgrad((Lrho (ip,jp,kp)-Lrho (i,j,k))*idpl,(Lrho (i,j,k)-Lrho (im,jm,km))*idml)
-                 ! this%gradLrhoE(idir,i,j,k)=mmgrad((LrhoE(ip,jp,kp)-LrhoE(i,j,k))*idpl,(LrhoE(i,j,k)-LrhoE(im,jm,km))*idml)
-                 ! this%gradLrhoU(idir,i,j,k)=mmgrad((LrhoU(ip,jp,kp)-LrhoU(i,j,k))*idpl,(LrhoU(i,j,k)-LrhoU(im,jm,km))*idml)
-                 ! this%gradLrhoV(idir,i,j,k)=mmgrad((LrhoV(ip,jp,kp)-LrhoV(i,j,k))*idpl,(LrhoV(i,j,k)-LrhoV(im,jm,km))*idml)
-                 ! this%gradLrhoW(idir,i,j,k)=mmgrad((LrhoW(ip,jp,kp)-LrhoW(i,j,k))*idpl,(LrhoW(i,j,k)-LrhoW(im,jm,km))*idml)
+                  ! this%gradGP   (idir,i,j,k) = mmgrad(this%GP   (im,jm,km),this%GP   (i,j,k), &
+                  !                                     this%GP   (ip,jp,kp),idm,idp)
+                  ! this%gradLP   (idir,i,j,k) = mmgrad(this%LP   (im,jm,km),this%LP   (i,j,k), &
+                  !                                     this%LP   (ip,jp,kp),idm,idp)
+                  ! this%gradGIE  (idir,i,j,k) = mmgrad(this%GrhoE(im,jm,km)-this%GKEold(im,jm,km), &
+                  !    this%GrhoE(i,j,k)-this%GKEold(i,j,k),this%GrhoE(ip,jp,kp)-this%GKEold(ip,jp,kp),idm,idp)
+                  ! this%gradLIE  (idir,i,j,k) = mmgrad(this%LrhoE(im,jm,km)-this%LKEold(im,jm,km), &
+                  !    this%LrhoE(i,j,k)-this%LKEold(i,j,k),this%LrhoE(ip,jp,kp)-this%LKEold(ip,jp,kp),idm,idp)
 
-                 ! this%gradGIE(idir,i,j,k)=mmgrad((GrhoE(ip,jp,kp)-oldGKE(ip,jp,kp)-GrhoE(i,j,k)+oldGKE(i,j,k))*idpg,&
-                 !                           (GrhoE(i,j,k)-oldGKE(i,j,k)-GrhoE(im,jm,km)+oldGKE(im,jm,km))*idmg)
-                 ! this%gradLIE(idir,i,j,k)=mmgrad((LrhoE(ip,jp,kp)-oldLKE(ip,jp,kp)-LrhoE(i,j,k)+oldLKE(i,j,k))*idpl,&
-                 !                           (LrhoE(i,j,k)-oldLKE(i,j,k)-LrhoE(im,jm,km)+oldLKE(im,jm,km))*idml)
+                  select case (idir)
+                  case (1) ! X gradient
+                     d = this%cfg%dx(i)
+                     ip3=i+3; jp3=j; kp3=k; dp3=this%cfg%dx(i+3)
+                     ip2=i+2; jp2=j; kp2=k; dp2=this%cfg%dx(i+2)
+                     ip1=i+1; jp1=j; kp1=k; dp1=this%cfg%dx(i+1)
+                     im1=i-1; jm1=j; km1=k; dm1=this%cfg%dx(i-1)
+                     im2=i-2; jm2=j; km2=k; dm2=this%cfg%dx(i-2)
+                     im3=i-3; jm3=j; km3=k; dm3=this%cfg%dx(i-3)
+                  case (2) ! Y gradient
+                     d = this%cfg%dy(j)
+                     ip3=i; jp3=j+3; kp3=k; dp3=this%cfg%dy(j+3)
+                     ip2=i; jp2=j+2; kp2=k; dp2=this%cfg%dy(j+2)
+                     ip1=i; jp1=j+1; kp1=k; dp1=this%cfg%dy(j+1)
+                     im1=i; jm1=j-1; km1=k; dm1=this%cfg%dy(j-1)
+                     im2=i; jm2=j-2; km2=k; dm2=this%cfg%dy(j-2)
+                     im3=i; jm3=j-3; km3=k; dm3=this%cfg%dy(j-3)
+                  case (3) ! Z gradient
+                     d = this%cfg%dz(k)
+                     ip3=i; jp3=j; kp3=k+3; dp3=this%cfg%dz(k+3)
+                     ip2=i; jp2=j; kp2=k+2; dp2=this%cfg%dz(k+2)
+                     ip1=i; jp1=j; kp1=k+1; dp1=this%cfg%dz(k+1)
+                     im1=i; jm1=j; km1=k-1; dm1=this%cfg%dz(k-1)
+                     im2=i; jm2=j; km2=k-2; dm2=this%cfg%dz(k-2)
+                     im3=i; jm3=j; km3=k-3; dm3=this%cfg%dz(k-3)
+                  end select
 
-                 ! this%gradGP(idir,i,j,k)=mmgrad((GP(ip,jp,kp)-GP(i,j,k))*idpg,(GP(i,j,k)-GP(im,jm,km))*idmg)
-                 ! this%gradLP(idir,i,j,k)=mmgrad((LP(ip,jp,kp)-LP(i,j,k))*idpl,(LP(i,j,k)-LP(im,jm,km))*idml)
+                  ! Fill geometry vector with data
+                  geomvec = [dm3,dm2,dm1,d,dp1,dp2,dp3]
+                  ! Fill vector with data, send to get gradient, save data
+                  varvec = [this%Grho(im3,jm3,km3), this%Grho(im2,jm2,km2), this%Grho(im1,jm1,km1), &
+                            this%Grho(i,  j,  k  ), this%Grho(ip1,jp1,kp1), this%Grho(ip2,jp2,kp2), &
+                            this%Grho(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGrho(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+
+                  ! Switch for multiphase treatment - zero gradients across interface
+
+                  ! Switch for multiphase treatment - zero gradients near interface
               end do
            end do
         end do
      end do
-
-     ! Communication and BCs
      
    contains
 
-     ! Minmod gradient
-     function mmgrad(g1,g2) result(g)
-       implicit none
-       real(WP), intent(in) :: g1,g2
-       real(WP) :: g
-       if (g1*g2.le.0.0_WP) then
-          g=0.0_WP
-       else
-          if (abs(g1).lt.abs(g2)) then
-             g=g1
-          else
-             g=g2
-          end if
-       end if
-     end function mmgrad
+      function reconstruction_model(phi,dx,model_recon) result(g)
+         real(WP), dimension(-3:3), intent(in) :: phi,dx
+         integer, intent(in) :: model_recon
+         real(WP), dimension(4) :: g
+         g = 0.0_WP
+         select case(model_recon)
+         case(minmod)
+            g(2) = mmgrad(phi(-1),phi(0),phi(+1),2.0_WP/(dx(0)+dx(-1)),2.0_WP/(dx(0)+dx(+1)))
+         case(central4th_lim,central4th)
+            g = centered4th(phi,dx)
+         end select
+      end function reconstruction_model
+
+      ! Minmod gradient
+      function mmgrad(sm1,s,sp1,dli,dri) result(g)
+         implicit none
+         real(WP), intent(in) :: sm1,s,sp1,dli,dri
+         real(WP) :: g
+         if ((s-sm1)*(sp1-s).le.0.0_WP) then
+            g=0.0_WP
+         else
+            if (abs(s-sm1)*dli.lt.abs(sp1-s)*dri) then
+               g=(s-sm1)*dli
+            else
+               g=(sp1-s)*dri
+            end if
+         end if
+      end function mmgrad
+
+      ! 4th-order centered derivative terms
+      function centered4th(phi,dx) result(grad)
+         implicit none
+         real(WP), dimension(-3:3), intent(in) :: phi,dx
+         real(WP), dimension(-2:3) :: dxm
+         real(WP), dimension(-2:2) :: sigmaLS, cm, cp, a, b, abar, bbar
+         real(WP), dimension(-1:1) :: atilde, ctildem, ctildep
+         real(WP), dimension(4) :: grad
+         real(WP) :: h2sum, h3sum, h4sum
+         real(WP) :: cstarm, cstarp, psi, theta, sigma
+         integer  :: n
+
+         ! center-to-center distances
+         dxm = 0.5_WP * (dx(-3:2) + dx(-2:3))
+
+         do n = -2,2
+            h2sum = dxm(n)**2 + dxm(n+1)**2
+            h3sum = dxm(n)**3 + dxm(n+1)**3
+            h4sum = dxm(n)**4 + dxm(n+1)**4
+            a(n) = h3sum / h2sum / 2.0_WP
+            b(n) = h4sum / h2sum / 6.0_WP
+
+            cm(n) = dxm(n  ) / (dxm(n)**2 + dxm(n+1)**2) ! alpha = n, beta = n-1
+            cp(n) = dxm(n+1) / (dxm(n)**2 + dxm(n+1)**2) ! alpha = n, beta = n+1
+            
+            abar(n) = a(n) + 1.0_WP/24.0_WP*(cm(n)*(dx(n-1)**2-dx(n)**2)+cp(n)*(dx(n+1)**2-dx(n)**2))
+            bbar(n) = b(n) + 1.0_WP/24.0_WP*(cm(n)*dx(n-1)**2*dxm(n)    +cp(n)*dx(n+1)**2*dxm(n+1  ))
+
+            sigmaLS(n) = cm(n) * (phi(n-1) - phi(n)) + cp(n) * (phi(n+1) - phi(n))
+         end do
+
+         do n = -1, 1
+            atilde(n) = (a(n) + (cm(n) * (bbar(n-1)-bbar(n)+abar(n-1) * dxm(n  ))) &
+                              + (cp(n) * (bbar(n+1)-bbar(n)+abar(n+1) * dxm(n+1)))) / &
+                  (1.0_WP + cm(n)*(abar(n-1)-abar(n)) + cp(n)*(abar(n+1)-abar(n)))
+            ctildem(n) = cm(n) / (1.0_WP+cm(n)*(abar(n-1)-abar(n))+cp(n)*(abar(n+1)-abar(n)))
+            ctildep(n) = cp(n) / (1.0_WP+cm(n)*(abar(n-1)-abar(n))+cp(n)*(abar(n+1)-abar(n)))
+         end do
+
+         cstarm = cm(0) / (1.0_WP+cm(0)*(atilde(-1)-atilde(0))+cp(0)*(atilde(+1)-atilde(0)))
+         cstarp = cp(0) / (1.0_WP+cm(0)*(atilde(-1)-atilde(0))+cp(0)*(atilde(+1)-atilde(0)))
+
+         psi = cstarm * ((ctildem(-1)*(sigmaLS(-2)-sigmaLS(-1))+ctildep(-1)*(sigmaLS( 0)-sigmaLS(-1))) &
+                        -(ctildem( 0)*(sigmaLS(-1)-sigmaLS( 0))+ctildep( 0)*(sigmaLS(+1)-sigmaLS( 0))))&
+             + cstarp * ((ctildem(+1)*(sigmaLS( 0)-sigmaLS(+1))+ctildep(+1)*(sigmaLS(+2)-sigmaLS(+1))) &
+                        -(ctildem( 0)*(sigmaLS(-1)-sigmaLS( 0))+ctildep( 0)*(sigmaLS(+1)-sigmaLS( 0))))
+         theta = -atilde(0)*psi + ctildem(0)*(sigmaLS(-1)-sigmaLS(0)) + ctildep(0)*(sigmaLS(+1)-sigmaLS(0))
+         sigma = -abar(0)*theta - bbar(0)*psi + sigmaLS(0)
+
+         grad(1) = -theta/24.0_WP*dx(0)**2 ! 0th order term
+         grad(2) = sigma                   ! 1st order
+         grad(3) = theta/2.0_WP            ! 2nd order
+         grad(4) = psi/6.0_WP              ! 3rd order
+
+
+      end function centered4th
 
    end subroutine flow_reconstruct
 
