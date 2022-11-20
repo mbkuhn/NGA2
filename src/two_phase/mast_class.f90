@@ -33,10 +33,9 @@ module mast_class
    ! List of available reconstruction methods
    integer, parameter, public :: piecewise_constant=1
    integer, parameter, public :: minmod=2
-   integer, parameter, public :: weno3=3
+   !integer, parameter, public :: weno3=3
    integer, parameter, public :: central4th_lim=4
    integer, parameter, public :: central4th=5
-   integer, parameter, public :: weno5_interp=6
 
    ! List of multiphase reconstruction approaches
    integer, parameter, public :: phase_blind=1   !< no adjustment for multiphase, variable values as is (incl. 0's)
@@ -361,20 +360,20 @@ contains
       allocate(self%LrhoFf (self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_,3)); self%LrhoFf =0.0_WP
 
       ! Gradients
-      allocate(self%gradGrho (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrho =0.0_WP
-      allocate(self%gradGrhoE(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoE=0.0_WP
-      allocate(self%gradGIE  (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGIE  =0.0_WP
-      allocate(self%gradGP   (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGP   =0.0_WP
-      allocate(self%gradGrhoU(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoU=0.0_WP
-      allocate(self%gradGrhoV(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoV=0.0_WP
-      allocate(self%gradGrhoW(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoW=0.0_WP
-      allocate(self%gradLrho (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrho =0.0_WP
-      allocate(self%gradLrhoE(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoE=0.0_WP
-      allocate(self%gradLIE  (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLIE  =0.0_WP
-      allocate(self%gradLP   (3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLP   =0.0_WP
-      allocate(self%gradLrhoU(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoU=0.0_WP
-      allocate(self%gradLrhoV(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoV=0.0_WP
-      allocate(self%gradLrhoW(3,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoW=0.0_WP
+      allocate(self%gradGrho (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrho =0.0_WP
+      allocate(self%gradGrhoE(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoE=0.0_WP
+      allocate(self%gradGIE  (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGIE  =0.0_WP
+      allocate(self%gradGP   (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGP   =0.0_WP
+      allocate(self%gradGrhoU(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoU=0.0_WP
+      allocate(self%gradGrhoV(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoV=0.0_WP
+      allocate(self%gradGrhoW(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradGrhoW=0.0_WP
+      allocate(self%gradLrho (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrho =0.0_WP
+      allocate(self%gradLrhoE(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoE=0.0_WP
+      allocate(self%gradLIE  (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLIE  =0.0_WP
+      allocate(self%gradLP   (12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLP   =0.0_WP
+      allocate(self%gradLrhoU(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoU=0.0_WP
+      allocate(self%gradLrhoV(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoV=0.0_WP
+      allocate(self%gradLrhoW(12,self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%gradLrhoW=0.0_WP
 
       ! Hybrid advection
       allocate(self%sl_x(self%cfg%imino_:self%cfg%imaxo_,self%cfg%jmino_:self%cfg%jmaxo_,self%cfg%kmino_:self%cfg%kmaxo_)); self%sl_x=0
@@ -1383,47 +1382,14 @@ contains
       this%gradLP   =0.0_WP
 
       ! Gradients for linear reconstruction
-      do k=this%cfg%kmino_,this%cfg%kmaxo_
-         do j=this%cfg%jmino_,this%cfg%jmaxo_
-            do i=this%cfg%imino_,this%cfg%imaxo_
+      do k=this%cfg%kmin_,this%cfg%kmax_
+         do j=this%cfg%jmin_,this%cfg%jmax_
+            do i=this%cfg%imin_,this%cfg%imax_
                ! No need to calculate gradient inside of wall cell
                if (this%mask(i,j,k).eq.1) cycle
                ! Cycle through directions
                do idir=1,3
                  
-
-                  ! ! Switch for scheme & order of accuracy
-                  ! this%gradGrho (idir,i,j,k) = mmgrad(this%Grho (im,jm,km),this%Grho (i,j,k), &
-                  !                                     this%Grho (ip,jp,kp),idm,idp)
-                  ! this%gradGrhoE(idir,i,j,k) = mmgrad(this%GrhoE(im,jm,km),this%GrhoE(i,j,k), &
-                  !                                     this%GrhoE(ip,jp,kp),idm,idp)
-                  ! this%gradGrhoU(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Ui(im,jm,km), &
-                  !    this%Grho(i,j,k)*this%Ui(i,j,k),this%Grho(ip,jp,kp)*this%Ui(ip,jp,kp),idm,idp)
-                  ! this%gradGrhoV(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Vi(im,jm,km), &
-                  !    this%Grho(i,j,k)*this%Vi(i,j,k),this%Grho(ip,jp,kp)*this%Vi(ip,jp,kp),idm,idp)
-                  ! this%gradGrhoW(idir,i,j,k) = mmgrad(this%Grho(im,jm,km)*this%Wi(im,jm,km), &
-                  !    this%Grho(i,j,k)*this%Wi(i,j,k),this%Grho(ip,jp,kp)*this%Wi(ip,jp,kp),idm,idp)
-
-                  ! this%gradLrho (idir,i,j,k) = mmgrad(this%Lrho (im,jm,km),this%Lrho (i,j,k), &
-                  !                                     this%Lrho (ip,jp,kp),idm,idp)
-                  ! this%gradLrhoE(idir,i,j,k) = mmgrad(this%LrhoE(im,jm,km),this%LrhoE(i,j,k), &
-                  !                                     this%LrhoE(ip,jp,kp),idm,idp)
-                  ! this%gradLrhoU(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Ui(im,jm,km), &
-                  !    this%Lrho(i,j,k)*this%Ui(i,j,k),this%Lrho(ip,jp,kp)*this%Ui(ip,jp,kp),idm,idp)
-                  ! this%gradLrhoV(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Vi(im,jm,km), &
-                  !    this%Lrho(i,j,k)*this%Vi(i,j,k),this%Lrho(ip,jp,kp)*this%Vi(ip,jp,kp),idm,idp)
-                  ! this%gradLrhoW(idir,i,j,k) = mmgrad(this%Lrho(im,jm,km)*this%Wi(im,jm,km), &
-                  !    this%Lrho(i,j,k)*this%Wi(i,j,k),this%Lrho(ip,jp,kp)*this%Wi(ip,jp,kp),idm,idp)
-
-                  ! this%gradGP   (idir,i,j,k) = mmgrad(this%GP   (im,jm,km),this%GP   (i,j,k), &
-                  !                                     this%GP   (ip,jp,kp),idm,idp)
-                  ! this%gradLP   (idir,i,j,k) = mmgrad(this%LP   (im,jm,km),this%LP   (i,j,k), &
-                  !                                     this%LP   (ip,jp,kp),idm,idp)
-                  ! this%gradGIE  (idir,i,j,k) = mmgrad(this%GrhoE(im,jm,km)-this%GKEold(im,jm,km), &
-                  !    this%GrhoE(i,j,k)-this%GKEold(i,j,k),this%GrhoE(ip,jp,kp)-this%GKEold(ip,jp,kp),idm,idp)
-                  ! this%gradLIE  (idir,i,j,k) = mmgrad(this%LrhoE(im,jm,km)-this%LKEold(im,jm,km), &
-                  !    this%LrhoE(i,j,k)-this%LKEold(i,j,k),this%LrhoE(ip,jp,kp)-this%LKEold(ip,jp,kp),idm,idp)
-
                   select case (idir)
                   case (1) ! X gradient
                      d = this%cfg%dx(i)
@@ -1586,6 +1552,22 @@ contains
            end do
         end do
      end do
+
+     ! Communicate gradients
+     call this%cfg%sync(this%gradGrho)
+     call this%cfg%sync(this%gradGrhoE)
+     call this%cfg%sync(this%gradGrhoU)
+     call this%cfg%sync(this%gradGrhoV)
+     call this%cfg%sync(this%gradGrhoW)
+     call this%cfg%sync(this%gradGP)
+     call this%cfg%sync(this%gradGIE)
+     call this%cfg%sync(this%gradLrho)
+     call this%cfg%sync(this%gradLrhoE)
+     call this%cfg%sync(this%gradLrhoU)
+     call this%cfg%sync(this%gradLrhoV)
+     call this%cfg%sync(this%gradLrhoW)
+     call this%cfg%sync(this%gradLP)
+     call this%cfg%sync(this%gradLIE)
      
    contains
 
@@ -2201,79 +2183,79 @@ contains
 
           val = this%Grhoold (ii,jj,kk) &
                +sum(this%gradGrho ( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGrho ( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGrho ( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGrho (10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGrho ( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGrho ( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGrho (10:12,ii,jj,kk)*my_Gbary**3)
           ! Limiter
           flux( 3) = flux( 3) + my_Gvol*val
           val = this%GrhoEold(ii,jj,kk) &
                +sum(this%gradGrhoE( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGrhoE( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGrhoE( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGrhoE(10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGrhoE( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGrhoE( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGrhoE(10:12,ii,jj,kk)*my_Gbary**3)
           flux( 4) = flux( 4) + my_Gvol*val
           val = this%Grhoold(ii,jj,kk)*this%Uiold(ii,jj,kk) &
                +sum(this%gradGrhoU( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGrhoU( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGrhoU( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGrhoU(10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGrhoU( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGrhoU( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGrhoU(10:12,ii,jj,kk)*my_Gbary**3)
           flux( 5) = flux( 5) + my_Gvol*val
           val = this%Grhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
                +sum(this%gradGrhoV( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGrhoV( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGrhoV( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGrhoV(10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGrhoV( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGrhoV( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGrhoV(10:12,ii,jj,kk)*my_Gbary**3)
           flux( 6) = flux( 6) + my_Gvol*val
           val = this%Grhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
                +sum(this%gradGrhoW( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGrhoW( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGrhoW( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGrhoW(10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGrhoW( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGrhoW( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGrhoW(10:12,ii,jj,kk)*my_Gbary**3)
           flux( 7) = flux( 7) + my_Gvol*val
 
           val = this%Lrhoold (ii,jj,kk) &
                +sum(this%gradLrho ( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLrho ( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLrho ( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLrho (10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLrho ( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLrho ( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLrho (10:12,ii,jj,kk)*my_Lbary**3)
           flux( 8) = flux( 8) + my_Lvol*val
           val = this%LrhoEold(ii,jj,kk) &
                +sum(this%gradLrhoE( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLrhoE( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLrhoE( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLrhoE(10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLrhoE( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLrhoE( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLrhoE(10:12,ii,jj,kk)*my_Lbary**3)
           flux( 9) = flux( 9) + my_Lvol*val
           val = this%Lrhoold(ii,jj,kk)*this%Uiold(ii,jj,kk) &
                +sum(this%gradLrhoU( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLrhoU( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLrhoU( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLrhoU(10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLrhoU( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLrhoU( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLrhoU(10:12,ii,jj,kk)*my_Lbary**3)
           flux(10) = flux(10) + my_Lvol*val
           val = this%Lrhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
                +sum(this%gradLrhoV( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLrhoV( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLrhoV( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLrhoV(10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLrhoV( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLrhoV( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLrhoV(10:12,ii,jj,kk)*my_Lbary**3)
           flux(11) = flux(11) + my_Lvol*val
           val = this%Lrhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
                +sum(this%gradLrhoW( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLrhoW( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLrhoW( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLrhoW(10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLrhoW( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLrhoW( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLrhoW(10:12,ii,jj,kk)*my_Lbary**3)
           flux(12) = flux(12) + my_Lvol*val
 
           val = this%GPold(ii,jj,kk) &
                +sum(this%gradGP( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradGP( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
-               +sum(this%gradGP( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
-               +sum(this%gradGP(10:12,ii,jj,kk)*my_Gbary(:)**3)
+               +sum(this%gradGP( 4:6 ,ii,jj,kk)*my_Gbary) &
+               +sum(this%gradGP( 7:9 ,ii,jj,kk)*my_Gbary**2) &
+               +sum(this%gradGP(10:12,ii,jj,kk)*my_Gbary**3)
           flux(13) = flux(13) + my_Gvol*val
 
           val = this%LPold(ii,jj,kk) &
                +sum(this%gradLP( 1:3 ,ii,jj,kk)) &
-               +sum(this%gradLP( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
-               +sum(this%gradLP( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
-               +sum(this%gradLP(10:12,ii,jj,kk)*my_Lbary(:)**3)
+               +sum(this%gradLP( 4:6 ,ii,jj,kk)*my_Lbary) &
+               +sum(this%gradLP( 7:9 ,ii,jj,kk)*my_Lbary**2) &
+               +sum(this%gradLP(10:12,ii,jj,kk)*my_Lbary**3)
           flux(14) = flux(14) + my_Lvol*val
 
        end do
@@ -2386,6 +2368,7 @@ contains
        integer,  dimension(3),  intent(in)  :: ind
        real(WP), dimension(14) :: f
        real(WP), dimension(3) :: dx_i
+       real(WP):: val
        integer :: ii,jj,kk
 
        ii = ind(1); jj = ind(2); kk = ind(3)
@@ -2403,17 +2386,41 @@ contains
           ! displacement to barycenter
           dx_i = pt_i - vf%Gbaryold(:,ii,jj,kk)
           ! interpolated variables
-          f(3) = this%Grhoold (ii,jj,kk)                       + sum(this%gradGrho(:,ii,jj,kk)*dx_i)
-          f(4) = this%GrhoEold(ii,jj,kk)-this%GKEold(ii,jj,kk) + sum(this%gradGIE (:,ii,jj,kk)*dx_i)
-          f(13)= this%GPold   (ii,jj,kk)                       + sum(this%gradGP  (:,ii,jj,kk)*dx_i)
+          f(3) = this%Grhoold(ii,jj,kk) &
+               +sum(this%gradGrho( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrho( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradGrho( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradGrho(10:12,ii,jj,kk)*dx_i**3)
+          f(4) = this%GrhoEold(ii,jj,kk)-this%GKEold(ii,jj,kk) &
+               +sum(this%gradGIE( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGIE( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradGIE( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradGIE(10:12,ii,jj,kk)*dx_i**3)
+          f(13) = this%GPold(ii,jj,kk) &
+               +sum(this%gradGP( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGP( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradGP( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradGP(10:12,ii,jj,kk)*dx_i**3)
        case(1)
           ! displacement to barycenter
           dx_i = pt_i - vf%Lbaryold(:,ii,jj,kk)
           ! interpolated variables
           f(2) = 1.0_WP
-          f(8) = this%Lrhoold (ii,jj,kk)                       + sum(this%gradLrho(:,ii,jj,kk)*dx_i)
-          f(9) = this%LrhoEold(ii,jj,kk)-this%LKEold(ii,jj,kk) + sum(this%gradLIE (:,ii,jj,kk)*dx_i)
-          f(14)= this%LPold   (ii,jj,kk)                       + sum(this%gradLP  (:,ii,jj,kk)*dx_i)
+          f(8) = this%Lrhoold(ii,jj,kk) &
+               +sum(this%gradLrho( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrho( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradLrho( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradLrho(10:12,ii,jj,kk)*dx_i**3)
+          f(9) = this%LrhoEold(ii,jj,kk)-this%LKEold(ii,jj,kk) &
+               +sum(this%gradLIE( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLIE( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradLIE( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradLIE(10:12,ii,jj,kk)*dx_i**3)
+          f(14) = this%LPold(ii,jj,kk) &
+               +sum(this%gradLP( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLP( 4:6 ,ii,jj,kk)*dx_i) &
+               +sum(this%gradLP( 7:9 ,ii,jj,kk)*dx_i**2) &
+               +sum(this%gradLP(10:12,ii,jj,kk)*dx_i**3)
        end select
      end function TTSL_getval
 
