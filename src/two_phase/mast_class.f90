@@ -1453,13 +1453,130 @@ contains
 
                   ! Fill geometry vector with data
                   geomvec = [dm3,dm2,dm1,d,dp1,dp2,dp3]
-                  ! Fill vector with data, send to get gradient, save data
+
+                  ! Grho
+                  ! Fill variable vector with data
                   varvec = [this%Grho(im3,jm3,km3), this%Grho(im2,jm2,km2), this%Grho(im1,jm1,km1), &
                             this%Grho(i,  j,  k  ), this%Grho(ip1,jp1,kp1), this%Grho(ip2,jp2,kp2), &
                             this%Grho(ip3,jp3,kp3)]
+                  ! Send to get gradient
                   gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  ! Save gradient
                   do igrad = 1,4
                      this%gradGrho(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GrhoE
+                  varvec = [this%GrhoE(im3,jm3,km3), this%GrhoE(im2,jm2,km2), this%GrhoE(im1,jm1,km1), &
+                            this%GrhoE(i,  j,  k  ), this%GrhoE(ip1,jp1,kp1), this%GrhoE(ip2,jp2,kp2), &
+                            this%GrhoE(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGrhoE(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GrhoU
+                  varvec = [this%Grho(im3,jm3,km3)*this%Ui(im3,jm3,km3), this%Grho(im2,jm2,km2)*this%Ui(im2,jm2,km2), &
+                            this%Grho(im1,jm1,km1)*this%Ui(im1,jm1,km1), this%Grho(i,  j,  k  )*this%Ui(i,  j,  k  ), &
+                            this%Grho(ip1,jp1,kp1)*this%Ui(ip1,jp1,kp1), this%Grho(ip2,jp2,kp2)*this%Ui(ip2,jp2,kp2), &
+                            this%Grho(ip3,jp3,kp3)*this%Ui(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGrhoU(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GrhoV
+                  varvec = [this%Grho(im3,jm3,km3)*this%Vi(im3,jm3,km3), this%Grho(im2,jm2,km2)*this%Vi(im2,jm2,km2), &
+                            this%Grho(im1,jm1,km1)*this%Vi(im1,jm1,km1), this%Grho(i,  j,  k  )*this%Vi(i,  j,  k  ), &
+                            this%Grho(ip1,jp1,kp1)*this%Vi(ip1,jp1,kp1), this%Grho(ip2,jp2,kp2)*this%Vi(ip2,jp2,kp2), &
+                            this%Grho(ip3,jp3,kp3)*this%Vi(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGrhoV(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GrhoW
+                  varvec = [this%Grho(im3,jm3,km3)*this%Wi(im3,jm3,km3), this%Grho(im2,jm2,km2)*this%Wi(im2,jm2,km2), &
+                            this%Grho(im1,jm1,km1)*this%Wi(im1,jm1,km1), this%Grho(i,  j,  k  )*this%Wi(i,  j,  k  ), &
+                            this%Grho(ip1,jp1,kp1)*this%Wi(ip1,jp1,kp1), this%Grho(ip2,jp2,kp2)*this%Wi(ip2,jp2,kp2), &
+                            this%Grho(ip3,jp3,kp3)*this%Wi(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGrhoW(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GP
+                  varvec = [this%GP(im3,jm3,km3), this%GP(im2,jm2,km2), this%GP(im1,jm1,km1), &
+                            this%GP(i,  j,  k  ), this%GP(ip1,jp1,kp1), this%GP(ip2,jp2,kp2), &
+                            this%GP(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGP(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! GIE
+                  varvec = [this%GrhoE(im3,jm3,km3)-this%GKEold(im3,jm3,km3), this%GrhoE(im2,jm2,km2)-this%GKEold(im2,jm2,km2), &
+                            this%GrhoE(im1,jm1,km1)-this%GKEold(im1,jm1,km1), this%GrhoE(i,  j,  k  )-this%GKEold(i,  j,  k  ), &
+                            this%GrhoE(ip1,jp1,kp1)-this%GKEold(ip1,jp1,kp1), this%GrhoE(ip2,jp2,kp2)-this%GKEold(ip2,jp2,kp2), &
+                            this%GrhoE(ip3,jp3,kp3)-this%GKEold(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradGIE(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+
+                  ! Lrho
+                  varvec = [this%Lrho(im3,jm3,km3), this%Lrho(im2,jm2,km2), this%Lrho(im1,jm1,km1), &
+                            this%Lrho(i,  j,  k  ), this%Lrho(ip1,jp1,kp1), this%Lrho(ip2,jp2,kp2), &
+                            this%Lrho(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLrho(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LrhoE
+                  varvec = [this%LrhoE(im3,jm3,km3), this%LrhoE(im2,jm2,km2), this%LrhoE(im1,jm1,km1), &
+                            this%LrhoE(i,  j,  k  ), this%LrhoE(ip1,jp1,kp1), this%LrhoE(ip2,jp2,kp2), &
+                            this%LrhoE(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLrhoE(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LrhoU
+                  varvec = [this%Lrho(im3,jm3,km3)*this%Ui(im3,jm3,km3), this%Lrho(im2,jm2,km2)*this%Ui(im2,jm2,km2), &
+                            this%Lrho(im1,jm1,km1)*this%Ui(im1,jm1,km1), this%Lrho(i,  j,  k  )*this%Ui(i,  j,  k  ), &
+                            this%Lrho(ip1,jp1,kp1)*this%Ui(ip1,jp1,kp1), this%Lrho(ip2,jp2,kp2)*this%Ui(ip2,jp2,kp2), &
+                            this%Lrho(ip3,jp3,kp3)*this%Ui(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLrhoU(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LrhoV
+                  varvec = [this%Lrho(im3,jm3,km3)*this%Vi(im3,jm3,km3), this%Lrho(im2,jm2,km2)*this%Vi(im2,jm2,km2), &
+                            this%Lrho(im1,jm1,km1)*this%Vi(im1,jm1,km1), this%Lrho(i,  j,  k  )*this%Vi(i,  j,  k  ), &
+                            this%Lrho(ip1,jp1,kp1)*this%Vi(ip1,jp1,kp1), this%Lrho(ip2,jp2,kp2)*this%Vi(ip2,jp2,kp2), &
+                            this%Lrho(ip3,jp3,kp3)*this%Vi(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLrhoV(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LrhoW
+                  varvec = [this%Lrho(im3,jm3,km3)*this%Wi(im3,jm3,km3), this%Lrho(im2,jm2,km2)*this%Wi(im2,jm2,km2), &
+                            this%Lrho(im1,jm1,km1)*this%Wi(im1,jm1,km1), this%Lrho(i,  j,  k  )*this%Wi(i,  j,  k  ), &
+                            this%Lrho(ip1,jp1,kp1)*this%Wi(ip1,jp1,kp1), this%Lrho(ip2,jp2,kp2)*this%Wi(ip2,jp2,kp2), &
+                            this%Lrho(ip3,jp3,kp3)*this%Wi(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLrhoW(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LP
+                  varvec = [this%LP(im3,jm3,km3), this%LP(im2,jm2,km2), this%LP(im1,jm1,km1), &
+                            this%LP(i,  j,  k  ), this%LP(ip1,jp1,kp1), this%LP(ip2,jp2,kp2), &
+                            this%LP(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLP(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
+                  end do
+                  ! LIE
+                  varvec = [this%LrhoE(im3,jm3,km3)-this%LKEold(im3,jm3,km3), this%LrhoE(im2,jm2,km2)-this%LKEold(im2,jm2,km2), &
+                            this%LrhoE(im1,jm1,km1)-this%LKEold(im1,jm1,km1), this%LrhoE(i,  j,  k  )-this%LKEold(i,  j,  k  ), &
+                            this%LrhoE(ip1,jp1,kp1)-this%LKEold(ip1,jp1,kp1), this%LrhoE(ip2,jp2,kp2)-this%LKEold(ip2,jp2,kp2), &
+                            this%LrhoE(ip3,jp3,kp3)-this%LKEold(ip3,jp3,kp3)]
+                  gradvec = reconstruction_model(varvec,geomvec,mo_r)
+                  do igrad = 1,4
+                     this%gradLIE(idir+3*(igrad-1),i,j,k) = gradvec(igrad)
                   end do
 
                   ! Switch for multiphase treatment - zero gradients across interface
@@ -2040,7 +2157,7 @@ contains
        use irl_fortran_interface, only: getSize
        integer  :: ii,jj,kk,n
        integer  :: list_size
-       real(WP) :: my_Gvol,my_Lvol
+       real(WP) :: my_Gvol,my_Lvol,val
        real(WP), dimension(3) :: my_Gbary,my_Lbary
        real(WP), dimension(14)  :: flux
        real(WP), dimension(3,2) :: b_flux
@@ -2082,20 +2199,82 @@ contains
           flux( 1) = flux( 1) + my_Lvol + my_Gvol
           flux( 2) = flux( 2) + my_Lvol
 
-          flux( 3) = flux( 3) + my_Gvol*(this%Grhoold (ii,jj,kk)+sum(this%gradGrho (:,ii,jj,kk)*my_Gbary(:)))
-          flux( 4) = flux( 4) + my_Gvol*(this%GrhoEold(ii,jj,kk)+sum(this%gradGrhoE(:,ii,jj,kk)*my_Gbary(:)))
-          flux( 5) = flux( 5) + my_Gvol*(this%Grhoold(ii,jj,kk)*this%Uiold(ii,jj,kk)+sum(this%gradGrhoU(:,ii,jj,kk)*my_Gbary(:)))
-          flux( 6) = flux( 6) + my_Gvol*(this%Grhoold(ii,jj,kk)*this%Viold(ii,jj,kk)+sum(this%gradGrhoV(:,ii,jj,kk)*my_Gbary(:)))
-          flux( 7) = flux( 7) + my_Gvol*(this%Grhoold(ii,jj,kk)*this%Wiold(ii,jj,kk)+sum(this%gradGrhoW(:,ii,jj,kk)*my_Gbary(:)))
+          val = this%Grhoold (ii,jj,kk) &
+               +sum(this%gradGrho ( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrho ( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGrho ( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGrho (10:12,ii,jj,kk)*my_Gbary(:)**3)
+          ! Limiter
+          flux( 3) = flux( 3) + my_Gvol*val
+          val = this%GrhoEold(ii,jj,kk) &
+               +sum(this%gradGrhoE( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrhoE( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGrhoE( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGrhoE(10:12,ii,jj,kk)*my_Gbary(:)**3)
+          flux( 4) = flux( 4) + my_Gvol*val
+          val = this%Grhoold(ii,jj,kk)*this%Uiold(ii,jj,kk) &
+               +sum(this%gradGrhoU( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrhoU( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGrhoU( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGrhoU(10:12,ii,jj,kk)*my_Gbary(:)**3)
+          flux( 5) = flux( 5) + my_Gvol*val
+          val = this%Grhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
+               +sum(this%gradGrhoV( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrhoV( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGrhoV( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGrhoV(10:12,ii,jj,kk)*my_Gbary(:)**3)
+          flux( 6) = flux( 6) + my_Gvol*val
+          val = this%Grhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
+               +sum(this%gradGrhoW( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGrhoW( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGrhoW( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGrhoW(10:12,ii,jj,kk)*my_Gbary(:)**3)
+          flux( 7) = flux( 7) + my_Gvol*val
 
-          flux( 8) = flux( 8) + my_Lvol*(this%Lrhoold (ii,jj,kk)+sum(this%gradLrho (:,ii,jj,kk)*my_Lbary(:)))
-          flux( 9) = flux( 9) + my_Lvol*(this%LrhoEold(ii,jj,kk)+sum(this%gradLrhoE(:,ii,jj,kk)*my_Lbary(:)))
-          flux(10) = flux(10) + my_Lvol*(this%Lrhoold(ii,jj,kk)*this%Uiold(ii,jj,kk)+sum(this%gradLrhoU(:,ii,jj,kk)*my_Lbary(:)))
-          flux(11) = flux(11) + my_Lvol*(this%Lrhoold(ii,jj,kk)*this%Viold(ii,jj,kk)+sum(this%gradLrhoV(:,ii,jj,kk)*my_Lbary(:)))
-          flux(12) = flux(12) + my_Lvol*(this%Lrhoold(ii,jj,kk)*this%Wiold(ii,jj,kk)+sum(this%gradLrhoW(:,ii,jj,kk)*my_Lbary(:)))
+          val = this%Lrhoold (ii,jj,kk) &
+               +sum(this%gradLrho ( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrho ( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLrho ( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLrho (10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux( 8) = flux( 8) + my_Lvol*val
+          val = this%LrhoEold(ii,jj,kk) &
+               +sum(this%gradLrhoE( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrhoE( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLrhoE( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLrhoE(10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux( 9) = flux( 9) + my_Lvol*val
+          val = this%Lrhoold(ii,jj,kk)*this%Uiold(ii,jj,kk) &
+               +sum(this%gradLrhoU( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrhoU( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLrhoU( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLrhoU(10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux(10) = flux(10) + my_Lvol*val
+          val = this%Lrhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
+               +sum(this%gradLrhoV( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrhoV( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLrhoV( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLrhoV(10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux(11) = flux(11) + my_Lvol*val
+          val = this%Lrhoold(ii,jj,kk)*this%Viold(ii,jj,kk) &
+               +sum(this%gradLrhoW( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLrhoW( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLrhoW( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLrhoW(10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux(12) = flux(12) + my_Lvol*val
 
-          flux(13) = flux(13) + my_Gvol*(this%GPold   (ii,jj,kk)+sum(this%gradGP   (:,ii,jj,kk)*my_Gbary(:)))
-          flux(14) = flux(14) + my_Lvol*(this%LPold   (ii,jj,kk)+sum(this%gradLP   (:,ii,jj,kk)*my_Lbary(:)))
+          val = this%GPold(ii,jj,kk) &
+               +sum(this%gradGP( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradGP( 4:6 ,ii,jj,kk)*my_Gbary(:)) &
+               +sum(this%gradGP( 7:9 ,ii,jj,kk)*my_Gbary(:)**2) &
+               +sum(this%gradGP(10:12,ii,jj,kk)*my_Gbary(:)**3)
+          flux(13) = flux(13) + my_Gvol*val
+
+          val = this%LPold(ii,jj,kk) &
+               +sum(this%gradLP( 1:3 ,ii,jj,kk)) &
+               +sum(this%gradLP( 4:6 ,ii,jj,kk)*my_Lbary(:)) &
+               +sum(this%gradLP( 7:9 ,ii,jj,kk)*my_Lbary(:)**2) &
+               +sum(this%gradLP(10:12,ii,jj,kk)*my_Lbary(:)**3)
+          flux(14) = flux(14) + my_Lvol*val
 
        end do
 
