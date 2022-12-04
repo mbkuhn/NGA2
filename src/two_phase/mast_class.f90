@@ -1617,22 +1617,22 @@ contains
 
          do n = -2,2
             h2sum = dxm(n)**2 + dxm(n+1)**2
-            h3sum = dxm(n)**3 + dxm(n+1)**3
+            h3sum =-dxm(n)**3 + dxm(n+1)**3
             h4sum = dxm(n)**4 + dxm(n+1)**4
             a(n) = h3sum / h2sum / 2.0_WP
             b(n) = h4sum / h2sum / 6.0_WP
 
-            cm(n) = dxm(n  ) / (dxm(n)**2 + dxm(n+1)**2) ! alpha = n, beta = n-1
+            cm(n) = - dxm(n) / (dxm(n)**2 + dxm(n+1)**2) ! alpha = n, beta = n-1
             cp(n) = dxm(n+1) / (dxm(n)**2 + dxm(n+1)**2) ! alpha = n, beta = n+1
             
             abar(n) = a(n) + 1.0_WP/24.0_WP*(cm(n)*(dx(n-1)**2-dx(n)**2)+cp(n)*(dx(n+1)**2-dx(n)**2))
-            bbar(n) = b(n) + 1.0_WP/24.0_WP*(cm(n)*dx(n-1)**2*dxm(n)    +cp(n)*dx(n+1)**2*dxm(n+1  ))
+            bbar(n) = b(n) + 1.0_WP/24.0_WP*(cm(n)*dx(n-1)**2*(-dxm(n)) +cp(n)*dx(n+1)**2*dxm(n+1  ))
 
             sigmaLS(n) = cm(n) * (phi(n-1) - phi(n)) + cp(n) * (phi(n+1) - phi(n))
          end do
 
          do n = -1, 1
-            atilde(n) = (a(n) + (cm(n) * (bbar(n-1)-bbar(n)+abar(n-1) * dxm(n  ))) &
+            atilde(n) = (a(n) + (cm(n) * (bbar(n-1)-bbar(n)+abar(n-1) *-dxm(n  ))) &
                               + (cp(n) * (bbar(n+1)-bbar(n)+abar(n+1) * dxm(n+1)))) / &
                   (1.0_WP + cm(n)*(abar(n-1)-abar(n)) + cp(n)*(abar(n+1)-abar(n)))
             ctildem(n) = cm(n) / (1.0_WP+cm(n)*(abar(n-1)-abar(n))+cp(n)*(abar(n+1)-abar(n)))
