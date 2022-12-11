@@ -10,6 +10,7 @@ module simulation
    use event_class,       only: event
    use monitor_class,     only: monitor
    use string,            only: str_medium
+   use mathtools,  only: Pi
    implicit none
    private
    
@@ -26,6 +27,10 @@ module simulation
    
    !> Simulation monitor file
    type(monitor) :: mfile,cflfile,cvgfile
+
+   !> Case specific
+   real(WP), dimension(3) :: center
+   real(WP) :: r, int_dist
    
    public :: simulation_init,simulation_run,simulation_final
    
@@ -33,17 +38,21 @@ contains
     
    !> Initialization of problem solver
    subroutine simulation_init
-      use param, only: param_read
+      use param, only: param_read, param_exists
       implicit none
       
       
-      ! Initialize time tracker with 2 subiterations
+      ! Initialize time tracker
       initialize_timetracker: block
          time=timetracker(amRoot=cfg%amRoot)
          call param_read('Max timestep size',time%dtmax)
          call param_read('Max cfl number',time%cflmax)
-         call param_read('Max time',time%tmax)
-         !call param_read('Max steps',time%nmax)
+         call param_read('Max steps',time%nmax)
+         if (cfg%nz.eq.1) then
+            time%tmax = 8.0_WP
+         else
+            time%tmax = 3.0_WP
+         end if
          time%dt=time%dtmax
          time%itmax=1
       end block initialize_timetracker
@@ -94,10 +103,8 @@ contains
       create_and_initialize_flow_solver: block
          use matm_class, only: none
          use ils_class,  only: gmres_smg,pcg_bbox
-         use mathtools,  only: Pi
          use messager,   only: die
          integer :: i,j,k,n
-         real(WP), dimension(3) :: xyz
          real(WP) :: gamm_g,dens,v0,d,int_dist,r
          ! Create material model class
          matmod=matm(cfg=cfg,name='Liquid-gas models')
@@ -125,15 +132,47 @@ contains
 
          ! Initial conditions
          fs%Lrho = 1.0_WP; fs%LrhoE = 1.0_WP; 
-         fs%Ui = 1.0_WP; fs%Vi = 0.0_WP; fs%Wi = 0.0_WP
-         call fs%interp_vel_basic(vf,fs%Ui,fs%Vi,fs%Wi,fs%U,fs%V,fs%W)
+         do k = fs%cfg%kmino_,fs%cfg%kmaxo_
+            do j = fs%cfg%jmino_,fs%cfg%jmaxo_
+               do i = fs%cfg%imino_,fs%cfg%imaxo
+                  if (fs%cfg%nz.eq.1) then
+                     fs%Ui(i,j,k) =-2.0_WP*sin(Pi*fs%cfg%xm(i))**2*sin(Pi*fs%cfg%ym(j))*cos(Pi*fs%cfg%ym(j))
+                     fs%Vi(i,j,k) = 2.0_WP*sin(Pi*fs%cfg%ym(j))**2*sin(Pi*fs%cfg%xm(i))*cos(Pi*fs%cfg%xm(i))
+                     fs%Wi(i,j,k) = 0.0_WP
+                     fs%U(i,j,k) =-2.0_WP*sin(Pi*fs%cfg%x(i))**2*sin(Pi*fs%cfg%ym(j))*cos(Pi*fs%cfg%ym(j))
+                     fs%V(i,j,k) = 2.0_WP*sin(Pi*fs%cfg%y(j))**2*sin(Pi*fs%cfg%xm(i))*cos(Pi*fs%cfg%xm(i))
+                     fs%W(i,j,k) = 0.0_WP
+                  else
+                     fs%Ui(i,j,k) =+2.0_WP*sin(Pi*fs%cfg%xm(i))**2*sin(2.0_WP*Pi*fs%cfg%ym(j))*sin(2.0_WP*Pi*fs%cfg%zm(k))
+                     fs%Vi(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(Pi*fs%cfg%ym(j))**2*sin(2.0_WP*Pi*fs%cfg%zm(k))
+                     fs%Wi(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(2.0_WP*Pi*fs%cfg%ym(j))*sin(Pi*fs%cfg%zm(k))**2
+                     fs%U(i,j,k) =+2.0_WP*sin(Pi*fs%cfg%x(i))**2*sin(2.0_WP*Pi*fs%cfg%ym(j))*sin(2.0_WP*Pi*fs%cfg%zm(k))
+                     fs%V(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(Pi*fs%cfg%y(j))**2*sin(2.0_WP*Pi*fs%cfg%zm(k))
+                     fs%W(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(2.0_WP*Pi*fs%cfg%ym(j))*sin(Pi*fs%cfg%z(k))**2
+                  end if
+               end do
+            end do
+         end do
+         if (fs%cfg%nz.eq.1) then
+            center = (/0.5_WP, 0.75_WP, fs%cfg%zm(fs%cfg%kmin_)/)
+         else
+            center = (/0.35_WP, 0.35_WP, 0.35_WP/)
+         end if
 
+         ! Default values
          r = 0.2_WP
+         ! Get from input if present
+         if (param_exists('Signal radius')) then
+            call param_read('Signal radius', r)
+         end if
          int_dist = 0.5_WP * r
+         if (param_exists('Signal edge thickness')) then
+            call param_read('Signal edge thickness', int_dist)
+         end if
          do k=fs%cfg%kmino_,fs%cfg%kmaxo_
             do j=fs%cfg%jmino_,fs%cfg%jmaxo_
                do i=fs%cfg%imino_,fs%cfg%imaxo_
-                  d = sqrt(fs%cfg%xm(i)**2+fs%cfg%ym(j)**2+fs%cfg%zm(k)**2)
+                  d = sqrt((fs%cfg%xm(i)-center(1))**2+(fs%cfg%ym(j)-center(2))**2+(fs%cfg%zm(k)-center(3))**2)
                   if (d.lt.r-int_dist) then
                      fs%Grho (i,j,k)=2.0_WP
                   else if (d.gt.r+int_dist) then
@@ -216,7 +255,9 @@ contains
    !> Perform an NGA2 simulation - this mimicks NGA's old time integration for multiphase
    subroutine simulation_run
       use mast_class, only: central4th
+      use mathtools,  only: Pi
       implicit none
+      integer :: i,j,k
       
       ! Perform time integration
       do while (.not.time%done())
@@ -224,6 +265,8 @@ contains
          ! Increment time
          call fs%get_cfl(time%dt,time%cfl)
          call time%adjust_dt()
+         ! Modify time to get correct final time
+         time%dt = min(time%dt,time%tmax-time%t)
          call time%increment()
          
          ! Reinitialize phase pressure by syncing it with conserved phase energy
@@ -249,22 +292,54 @@ contains
          ! Set flag as desired
          fs%sl_x = 1; fs%sl_y = 1; fs%sl_z = 1
 
-         ! Set velocity for current time
-         fs%Ui = 1.0_WP; fs%Vi = 0.0_WP; fs%Wi = 0.0_WP
-         ! Interpolate for face velocity
-         call fs%interp_vel_basic(vf,fs%Ui,fs%Vi,fs%Wi,fs%U,fs%V,fs%W)
+         ! Set advective velocity for current time
+         do k = fs%cfg%kmino_,fs%cfg%kmaxo_
+            do j = fs%cfg%jmino_,fs%cfg%jmaxo_
+               do i = fs%cfg%imino_,fs%cfg%imaxo
+                  if (fs%cfg%nz.eq.1) then
+                     fs%U(i,j,k) =-2.0_WP*sin(Pi*fs%cfg%x(i))**2*sin(Pi*fs%cfg%ym(j)) &
+                                          *cos(Pi*fs%cfg%ym(j))*cos(Pi*(time%t + 0.5_WP*time%dt)/8.0_WP)
+                     fs%V(i,j,k) = 2.0_WP*sin(Pi*fs%cfg%y(j))**2*sin(Pi*fs%cfg%xm(i)) &
+                                          *cos(Pi*fs%cfg%xm(i))*cos(Pi*(time%t + 0.5_WP*time%dt)/8.0_WP) 
+                     fs%W(i,j,k) = 0.0_WP
+                  else
+                     fs%U(i,j,k) =+2.0_WP*sin(Pi*fs%cfg%x(i))**2*sin(2.0_WP*Pi*fs%cfg%ym(j)) &
+                                    *sin(2.0_WP*Pi*fs%cfg%zm(k))*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                     fs%V(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(Pi*fs%cfg%y(j))**2 &
+                                    *sin(2.0_WP*Pi*fs%cfg%zm(k))*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                     fs%W(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(2.0_WP*Pi*fs%cfg%ym(j)) &
+                                    *sin(Pi*fs%cfg%z(k))**2*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                  end if
+               end do
+            end do
+         end do
+            
+         ! Predictor step, involving advection and pressure terms
+         call fs%advection_step(time%dt,vf,matmod)
+            
+         ! Record convergence monitor
+         call cvgfile%write()
 
-         ! Perform sub-iterations
-         do while (time%it.le.time%itmax)
-            
-            ! Predictor step, involving advection and pressure terms
-            call fs%advection_step(time%dt,vf,matmod)
-            
-            ! Record convergence monitor
-            call cvgfile%write()
-            ! Increment sub-iteration counter
-            time%it=time%it+1
-            
+         ! Set velocity for visualization
+         do k = fs%cfg%kmino_,fs%cfg%kmaxo_
+            do j = fs%cfg%jmino_,fs%cfg%jmaxo_
+               do i = fs%cfg%imino_,fs%cfg%imaxo
+                  if (fs%cfg%nz.eq.1) then
+                     fs%Ui(i,j,k) =-2.0_WP*sin(Pi*fs%cfg%xm(i))**2*sin(Pi*fs%cfg%ym(j)) &
+                                          *cos(Pi*fs%cfg%ym(j))*cos(Pi*(time%t + 0.5_WP*time%dt)/8.0_WP)
+                     fs%Vi(i,j,k) = 2.0_WP*sin(Pi*fs%cfg%ym(j))**2*sin(Pi*fs%cfg%xm(i)) &
+                                          *cos(Pi*fs%cfg%xm(i))*cos(Pi*(time%t + 0.5_WP*time%dt)/8.0_WP) 
+                     fs%Wi(i,j,k) = 0.0_WP
+                  else
+                     fs%Ui(i,j,k) =+2.0_WP*sin(Pi*fs%cfg%xm(i))**2*sin(2.0_WP*Pi*fs%cfg%ym(j)) &
+                                    *sin(2.0_WP*Pi*fs%cfg%zm(k))*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                     fs%Vi(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(Pi*fs%cfg%ym(j))**2 &
+                                    *sin(2.0_WP*Pi*fs%cfg%zm(k))*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                     fs%Wi(i,j,k) = -sin(2.0_WP*Pi*fs%cfg%xm(i))*sin(2.0_WP*Pi*fs%cfg%ym(j)) &
+                                    *sin(Pi*fs%cfg%zm(k))**2*cos(Pi*(time%t + 0.5_WP*time%dt)/3.0_WP)
+                  end if
+               end do
+            end do
          end do
          
          ! Output to ensight
@@ -283,14 +358,36 @@ contains
    
    !> Finalize the NGA2 simulation
    subroutine simulation_final
+      use mpi_f08,   only: MPI_ALLREDUCE,MPI_SUM
+      use parallel,  only: MPI_REAL_WP
+      implicit none
+      real(WP) :: L2, d, buf1, ncell
+      integer :: i,j,k,ierr
       
-      ! Get rid of all objects - need destructors
-      ! monitor
-      ! ensight
-      ! bcond
-      ! timetracker
-      
-      ! Deallocate work arrays - none
+      ! Compare final density to initial density to calculate L2 error
+      L2 = 0.0_WP
+      ncell = 0.0_WP
+
+      do k=fs%cfg%kmin_,fs%cfg%kmax_
+         do j=fs%cfg%jmin_,fs%cfg%jmax_
+            do i=fs%cfg%imin_,fs%cfg%imax_
+               d = sqrt((fs%cfg%xm(i)-center(1))**2+(fs%cfg%ym(j)-center(2))**2+(fs%cfg%zm(k)-center(3))**2)
+               if (d.lt.r-int_dist) then
+                  L2 = L2 + (fs%Grho (i,j,k)-2.0_WP)**2
+               else if (d.gt.r+int_dist) then
+                  L2 = L2 + (fs%Grho (i,j,k)-1.0_WP)**2
+               else
+                  L2 = L2 + (fs%Grho (i,j,k)-(1.5_WP-0.5_WP*sin((d-r)/(2.0_WP*int_dist)*Pi)))**2
+               end if
+               ncell = ncell + 1.0_WP
+            end do
+         end do
+      end do
+      call MPI_ALLREDUCE(L2,buf1,1,MPI_REAL_WP,MPI_SUM,fs%cfg%comm,ierr);
+      L2 = sqrt(buf1)
+      call MPI_ALLREDUCE(ncell,buf1,1,MPI_REAL_WP,MPI_SUM,fs%cfg%comm,ierr);
+      L2 = L2 / buf1
+      if (fs%cfg%amRoot) print*,'L2 error per cell', L2
       
    end subroutine simulation_final
    
