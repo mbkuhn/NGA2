@@ -31,6 +31,7 @@ module simulation
    !> Case specific
    real(WP), dimension(3) :: center
    real(WP) :: r, int_dist
+   integer  :: reconstr
    
    public :: simulation_init,simulation_run,simulation_final
    
@@ -104,8 +105,10 @@ contains
          use matm_class, only: none
          use ils_class,  only: gmres_smg,pcg_bbox
          use messager,   only: die
+         use mast_class, only: central4th,central4th_lim,minmod,piecewise_constant !,weno3
          integer :: i,j,k,n
          real(WP) :: gamm_g,dens,v0,d,int_dist,r
+         character(len=str_medium) :: rec_string
          ! Create material model class
          matmod=matm(cfg=cfg,name='Liquid-gas models')
          ! Get EOS parameters from input
@@ -184,6 +187,23 @@ contains
             end do
          end do
 
+         ! Set reconstruction method
+         call param_read('Reconstruction method', rec_string)
+         select case(trim(adjustl(rec_string)))
+         case('central4','central4th')
+            reconstr = central4th
+         case('central4th_lim','central4_lim')
+            reconstr = central4th_lim
+         case('minmod')
+            reconstr = minmod
+         case('piecewise_constant','piecewise_const')
+            reconstr = piecewise_constant
+         !case('weno3')
+         !   reconstr = weno3
+         case default
+            call die('Invalid or unimplemented reconstruction method')
+         end select
+
          fs%RHO = fs%Grho
 
       end block create_and_initialize_flow_solver
@@ -254,7 +274,6 @@ contains
    
    !> Perform an NGA2 simulation - this mimicks NGA's old time integration for multiphase
    subroutine simulation_run
-      use mast_class, only: central4th
       use mathtools,  only: Pi
       implicit none
       integer :: i,j,k
@@ -282,7 +301,7 @@ contains
          call vf%copy_interface_to_old()
          
          ! Create in-cell reconstruction
-         call fs%flow_reconstruct(vf,central4th)
+         call fs%flow_reconstruct(vf,reconstr)
 
          ! Zero pressure variables in predictor
          fs%P = 0.0_WP

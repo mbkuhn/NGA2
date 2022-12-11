@@ -25,11 +25,9 @@ contains
       create_grid: block
          use sgrid_class, only: cartesian
          use messager,    only: die
-         use string,      only: str_medium
          integer :: i,j,k,nx,ny,nz
          real(WP) :: Lx,Ly,Lz
          real(WP), dimension(:), allocatable :: x,y,z
-         character(len=str_medium) :: shtb_type
          
          ! Read in grid definition
          Lx = 1.0_WP; Ly = 1.0_WP; Lz = 1.0_WP
