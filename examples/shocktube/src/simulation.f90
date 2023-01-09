@@ -181,6 +181,13 @@ contains
                   fs%GrhoE(i,:,:) = matmod%EOS_energy(1.0_WP,dens,0.0_WP,0.0_WP,0.0_WP,'gas')
                end if
             end do
+         case('acoustic_pulse')
+            do i=fs%cfg%imino_,fs%cfg%imaxo_
+               pressurepert = PressureAmplitude*exp(-20.0D0*(xm(i)-InitialPulseLocation)**2)
+               fs%Grho (i,:,:)= AmbientDensity+(pressurepert*AmbientDensity)/(Ggamm*AmbientPressure)
+               fs%Ui   (i,:,:)= 0.0_WP
+               fs%GrhoE(i,:,:)=(AmbientPressure+pressurepert)/(Ggamm-1.0_WP)
+            end do
          case default
             call die("Unknown case for shocktube")
          end select

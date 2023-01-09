@@ -163,7 +163,7 @@ contains
          end if
 
          ! Default values
-         r = 0.2_WP
+         r = 0.15_WP
          ! Get from input if present
          if (param_exists('Signal radius')) then
             call param_read('Signal radius', r)
