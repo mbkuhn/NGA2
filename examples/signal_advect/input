@@ -15,8 +15,8 @@ Max cfl number :    1
 Max steps :	    100000
 
 # Problem setup
-Signal radius:		0.2
-Signal edge thickness: 	0.1
+Signal radius:		0.15
+Signal edge thickness: 	0.075
 Reconstruction method:	central4th
 
 # Pressure solver
